@@ -20,10 +20,11 @@ def preprocess_data(data, is_training=True):
 
     # Separate trip_id_unique_station to handle it independently
     trip_id_unique_station = data['trip_id_unique_station'].copy()
+    data.drop(columns=['trip_id_unique_station'], inplace=True)
 
     # Drop specified columns
     columns_to_drop = ['line_id', 'part', 'trip_id_unique', 'station_id', 'station_name']
-    data.drop(columns=columns_to_drop + ['trip_id_unique_station'], inplace=True)
+    data.drop(columns=columns_to_drop, inplace=True)
 
     # Modify specified columns
     data['direction'] = LabelEncoder().fit_transform(data['direction'])
@@ -102,6 +103,12 @@ def predict(model, X):
     return np.clip(predictions, 0, None)  # Ensure no negative predictions
 
 def save_predictions(predictions, output_path, trip_id_unique_station):
+    # Ensure consistent lengths before saving
+    if len(predictions) != len(trip_id_unique_station):
+        min_length = min(len(predictions), len(trip_id_unique_station))
+        predictions = predictions[:min_length]
+        trip_id_unique_station = trip_id_unique_station[:min_length]
+
     # Round predictions to the nearest whole number
     rounded_predictions = np.round(predictions).astype(int)
     output = pd.DataFrame({'trip_id_unique_station': trip_id_unique_station, 'passengers_up': rounded_predictions})
