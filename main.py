@@ -4,28 +4,26 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LinearRegression
 import numpy as np
-
+import matplotlib.pyplot as plt
+import os
 
 def load_data(file_path):
     return pd.read_csv(file_path, encoding='ISO-8859-1')
-
 
 def inspect_data(data):
     print(data.columns)
     print(data.dtypes)
     print(data.head())
 
-
 def preprocess_data(data, is_training=True):
     print(f"Initial data shape: {data.shape}")
 
     # Separate trip_id_unique_station to handle it independently
     trip_id_unique_station = data['trip_id_unique_station'].copy()
-    data.drop(columns=['trip_id_unique_station'], inplace=True)
 
     # Drop specified columns
     columns_to_drop = ['line_id', 'part', 'trip_id_unique', 'station_id', 'station_name']
-    data.drop(columns=columns_to_drop, inplace=True)
+    data.drop(columns=columns_to_drop + ['trip_id_unique_station'], inplace=True)
 
     # Modify specified columns
     data['direction'] = LabelEncoder().fit_transform(data['direction'])
@@ -33,7 +31,20 @@ def preprocess_data(data, is_training=True):
 
     data['arrival_time'] = pd.to_datetime(data['arrival_time'], format='%H:%M:%S', errors='coerce')
     data['door_closing_time'] = pd.to_datetime(data['door_closing_time'], format='%H:%M:%S', errors='coerce')
+
+    # Fill missing door_closing_time with the average of existing values
+    average_door_closing_time = data['door_closing_time'].dropna().mean()
+    data['door_closing_time'].fillna(average_door_closing_time, inplace=True)
+
+    # Remove rows where door_closing_time is before arrival_time
+    valid_rows = data['door_closing_time'] >= data['arrival_time']
+    data = data[valid_rows]
+    trip_id_unique_station = trip_id_unique_station[valid_rows]
+
+    # Create time_in_station
     data['time_in_station'] = (data['door_closing_time'] - data['arrival_time']).dt.total_seconds()
+    average_time_in_station = data['time_in_station'].dropna().mean()
+    data['time_in_station'].fillna(average_time_in_station, inplace=True)
     data.drop(columns=['arrival_time', 'door_closing_time'], inplace=True)
 
     data['arrival_is_estimated'] = data['arrival_is_estimated'].astype(int)
@@ -64,6 +75,7 @@ def preprocess_data(data, is_training=True):
     if data.isnull().values.any() or np.isinf(data.values).any():
         print("Warning: NaN or infinity values found in the data after filling NaN values.")
         data = data.dropna()  # Drop rows with remaining NaN or infinity values
+        trip_id_unique_station = trip_id_unique_station[data.index]
 
     # Feature Scaling
     numerical_features = ['station_index', 'latitude', 'longitude', 'mekadem_nipuach_luz',
@@ -80,29 +92,42 @@ def preprocess_data(data, is_training=True):
     else:
         return data, trip_id_unique_station
 
-
 def train_model(X_train, y_train):
     model = LinearRegression()
     model.fit(X_train, y_train)
     return model
 
-
 def predict(model, X):
     predictions = model.predict(X)
     return np.clip(predictions, 0, None)  # Ensure no negative predictions
 
-
 def save_predictions(predictions, output_path, trip_id_unique_station):
-    output = pd.DataFrame({'trip_id_unique_station': trip_id_unique_station, 'passengers_up': predictions})
+    # Round predictions to the nearest whole number
+    rounded_predictions = np.round(predictions).astype(int)
+    output = pd.DataFrame({'trip_id_unique_station': trip_id_unique_station, 'passengers_up': rounded_predictions})
     output.to_csv(output_path, index=False)
 
+def plot_relationships(data, predictions, features, output_dir):
+    os.makedirs(output_dir, exist_ok=True)  # Ensure the output directory exists
+
+    data['passengers_up_predicted'] = predictions
+
+    for feature in features:
+        plt.figure(figsize=(10, 6))
+        plt.scatter(data[feature], data['passengers_up_predicted'], alpha=0.5)
+        plt.title(f'Relationship between {feature} and passengers_up')
+        plt.xlabel(feature)
+        plt.ylabel('passengers_up')
+        plt.grid(True)
+        plt.savefig(f"{output_dir}/{feature}_vs_passengers_up.png")
+        plt.close()
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--training_set', type=str, required=True, help="path to the training set")
     parser.add_argument('--test_set', type=str, required=True, help="path to the test set")
-    parser.add_argument('--out', type=str, required=True,
-                        help="path of the output file as required in the task description")
+    parser.add_argument('--out', type=str, required=True, help="path of the output file as required in the task description")
+    parser.add_argument('--plot_dir', type=str, required=True, help="directory to save plots")
     args = parser.parse_args()
 
     # 1. load the training set (args.training_set)
@@ -140,3 +165,7 @@ if __name__ == '__main__':
     # 7. save the predictions to args.out
     logging.info("predictions saved to {}".format(args.out))
     save_predictions(predictions, args.out, trip_id_unique_station_test)
+
+    # 8. plot relationships between features and passengers_up
+    features_to_plot = ['bus_capacity_at_arrival', 'time_in_station', 'cluster', 'direction']
+    plot_relationships(test_data, predictions, features_to_plot, args.plot_dir)
