@@ -33,18 +33,19 @@ def preprocess_data(data, is_training=True):
     data['arrival_time'] = pd.to_datetime(data['arrival_time'], format='%H:%M:%S', errors='coerce')
     data['door_closing_time'] = pd.to_datetime(data['door_closing_time'], format='%H:%M:%S', errors='coerce')
 
-    # Fill missing door_closing_time with the average of existing values
-    average_door_closing_time = data['door_closing_time'].dropna().mean()
-    data['door_closing_time'].fillna(average_door_closing_time, inplace=True)
+    # Remove rows where arrival_time is null
+    data = data[data['arrival_time'].notnull()]
 
-    # Remove rows where door_closing_time is before arrival_time
-    valid_rows = data['door_closing_time'] >= data['arrival_time']
-    data = data[valid_rows]
-    trip_id_unique_station = trip_id_unique_station[valid_rows]
-
-    # Create time_in_station
+    # Create time_in_station for valid rows
+    valid_rows = (data['door_closing_time'].notnull()) & (data['door_closing_time'] >= data['arrival_time']) & (data['door_closing_time'].dt.date == data['arrival_time'].dt.date)
     data['time_in_station'] = (data['door_closing_time'] - data['arrival_time']).dt.total_seconds()
+
+    # Handle potential negative values in time_in_station
+    data.loc[data['time_in_station'] < 0, 'time_in_station'] = np.nan
+
     average_time_in_station = data['time_in_station'].dropna().mean()
+
+    # Fill time_in_station for invalid rows with the average
     data['time_in_station'].fillna(average_time_in_station, inplace=True)
     data.drop(columns=['arrival_time', 'door_closing_time'], inplace=True)
 
@@ -76,7 +77,7 @@ def preprocess_data(data, is_training=True):
     if data.isnull().values.any() or np.isinf(data.values).any():
         print("Warning: NaN or infinity values found in the data after filling NaN values.")
         data = data.dropna()  # Drop rows with remaining NaN or infinity values
-        trip_id_unique_station = trip_id_unique_station[data.index]
+        trip_id_unique_station = trip_id_unique_station.loc[data.index]
 
     # Feature Scaling
     numerical_features = ['station_index', 'latitude', 'longitude', 'mekadem_nipuach_luz',
@@ -85,6 +86,7 @@ def preprocess_data(data, is_training=True):
     data[numerical_features] = scaler.fit_transform(data[numerical_features])
 
     print(f"Data shape after scaling: {data.shape}")
+    print(f"Columns after preprocessing: {data.columns}")
 
     if is_training:
         X = data.drop(columns=['passengers_up'])
@@ -119,15 +121,21 @@ def plot_relationships(data, predictions, features, output_dir):
 
     data['passengers_up_predicted'] = predictions
 
+    # Debugging step: Print columns to ensure they exist
+    print("Columns available for plotting:", data.columns)
+
     for feature in features:
-        plt.figure(figsize=(10, 6))
-        plt.scatter(data[feature], data['passengers_up_predicted'], alpha=0.5)
-        plt.title(f'Relationship between {feature} and passengers_up')
-        plt.xlabel(feature)
-        plt.ylabel('passengers_up')
-        plt.grid(True)
-        plt.savefig(f"{output_dir}/{feature}_vs_passengers_up.png")
-        plt.close()
+        if feature in data.columns:
+            plt.figure(figsize=(10, 6))
+            plt.scatter(data[feature], data['passengers_up_predicted'], alpha=0.5)
+            plt.title(f'Relationship between {feature} and passengers_up')
+            plt.xlabel(feature)
+            plt.ylabel('passengers_up')
+            plt.grid(True)
+            plt.savefig(f"{output_dir}/{feature}_vs_passengers_up.png")
+            plt.close()
+        else:
+            print(f"Feature {feature} not found in data columns.")
 
 if __name__ == '__main__':
     parser = ArgumentParser()
