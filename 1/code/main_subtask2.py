@@ -10,10 +10,10 @@ from sklearn.tree import DecisionTreeRegressor
 
 """
 usage:
-    python code/main.py --training_set PATH --test_set PATH --out PATH
+    python code/main_subtask1.py --training_set PATH --test_set PATH --out PATH
 
 for example:
-    python code/main.py --training_set /cs/usr/gililior/training.csv --test_set /cs/usr/gililior/test.csv --out predictions/trip_duration_predictions.csv 
+    python code/main_subtask1.py --training_set /cs/usr/gililior/training.csv --test_set /cs/usr/gililior/test.csv --out predictions/trip_duration_predictions.csv 
 """
 def plot_mse_vs_percentage(results):
     percentages, mse_values = zip(*results)
@@ -139,7 +139,7 @@ def predict(model, x_test):
 
 def save_predictions(predictions, output_path):
     os.makedirs('predictions', exist_ok=True)
-    predictions.to_csv(output_path)
+    predictions.to_csv(output_path, index = False)
 
 
 def visualize_data(data):
