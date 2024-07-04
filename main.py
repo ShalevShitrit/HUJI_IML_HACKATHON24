@@ -143,18 +143,18 @@ def generate_additional_plots(data, arrival_time, output_dir):
     plt.savefig(f"{output_dir}/peak_rush_hours.png")
     plt.close()
 
-    # Plot 2: Heatmap of Bus Usage Across Clusters Over Time
-    data['hour'] = data['arrival_time'].dt.hour
-    cluster_hourly_data = data.groupby(['cluster', 'hour']).agg({'passengers_up': 'mean'}).reset_index()
-    cluster_hourly_pivot = cluster_hourly_data.pivot('cluster', 'hour', 'passengers_up')
-
-    plt.figure(figsize=(12, 8))
-    sns.heatmap(cluster_hourly_pivot, cmap="YlGnBu", annot=True, fmt=".1f", linewidths=.5)
-    plt.title('Heatmap of Average Bus Usage Across Clusters Over Time')
-    plt.xlabel('Hour of the Day')
-    plt.ylabel('Cluster')
-    plt.savefig(f"{output_dir}/heatmap_bus_usage_across_clusters.png")
-    plt.close()
+    # # Plot 2: Heatmap of Bus Usage Across Clusters Over Time
+    # data['hour'] = data['arrival_time'].dt.hour
+    # cluster_hourly_data = data.groupby(['cluster', 'hour']).agg({'passengers_up': 'mean'}).reset_index()
+    # cluster_hourly_pivot = cluster_hourly_data.pivot('cluster', 'hour', 'passengers_up')
+    #
+    # plt.figure(figsize=(12, 8))
+    # sns.heatmap(cluster_hourly_pivot, cmap="YlGnBu", annot=True, fmt=".1f", linewidths=.5)
+    # plt.title('Heatmap of Average Bus Usage Across Clusters Over Time')
+    # plt.xlabel('Hour of the Day')
+    # plt.ylabel('Cluster')
+    # plt.savefig(f"{output_dir}/heatmap_bus_usage_across_clusters.png")
+    # plt.close()
 
     # Plot 3: Consistency in Public Transportation Usage (daily usage)
     data['day'] = data['arrival_time'].dt.day_name()

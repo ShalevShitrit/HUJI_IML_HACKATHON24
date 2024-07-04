@@ -22,7 +22,7 @@ def eval_duration(predictions: pd.DataFrame, ground_truth: pd.DataFrame):
 if __name__ == '__main__':
 
     parser = ArgumentParser()
-    parser.add_argument("--trip_duration_predictions", type=str, default="output_t2.csv",
+    parser.add_argument("--trip_duration_predictions", type=str, default="predictions/trip_duration_predictions.csv",
                         help="path to the trip duration predictions file")
     parser.add_argument("--gold_trip_duration", type=str, default="private/data/y_trip_duration.csv",
                         help="path to the gold trip duration file")
