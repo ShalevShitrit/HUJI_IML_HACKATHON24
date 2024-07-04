@@ -1,6 +1,6 @@
 import logging
 from argparse import ArgumentParser
-
+import  os
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -43,13 +43,13 @@ def calculate_mse_percentage(train_data, test_data, percentages=list(range(5,100
 
         # Preprocess test data
 
-        x_test = test_data_processed.drop(['trip_duration'], axis=1)
+        x_test = test_data.drop(['trip_duration'], axis=1)
 
         # Predict using the model
         predictions = predict(model, x_test)
 
         # Calculate MSE
-        mse = mean_squared_error(test_data_processed['trip_duration'], predictions)
+        mse = mean_squared_error(test_data['trip_duration'], predictions)
         results.append((percent, mse))
 
     return results
@@ -138,7 +138,8 @@ def predict(model, x_test):
 
 
 def save_predictions(predictions, output_path):
-    predictions.to_csv(output_path, index=False)
+    os.makedirs('predictions', exist_ok=True)
+    predictions.to_csv(output_path)
 
 
 def visualize_data(data):
@@ -178,7 +179,6 @@ if __name__ == '__main__':
     # Separate features and target variable
     x_train = train_data_processed.drop(['trip_duration'], axis=1)
     y_train = train_data_processed['trip_duration']
-    print(x_train)
 
     # 3. train a model
     logging.info("training model...")
@@ -212,4 +212,3 @@ if __name__ == '__main__':
     # Print the results
 
     plot_mse_vs_percentage(mse_results)
-
